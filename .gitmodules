@@ -1,0 +1,3 @@
+[submodule "ext/julius4seg"]
+	path = ext/julius4seg
+	url = https://github.com/Hiroshiba/julius4seg.git
