@@ -22,13 +22,12 @@ ENV PATH /root/.pyenv/bin:$PATH
 RUN git clone https://github.com/pyenv/pyenv.git ~/.pyenv && \
   pyenv install 3.8.13 && \
   pyenv global 3.8.13 && \
-  echo 'eval "$(pyenv init --path)"' >> /root/.bashrc && \
+  echo 'eval "$(pyenv init --path)"' > /root/.bashrc && \
   ( cd /tmp && curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py && python3 get-pip.py )
 
-
 WORKDIR /usr/src/app
+COPY requirements.txt /usr/src/app
+RUN . /root/.bashrc && pip3 install -r requirements.txt
 COPY . /usr/src/app
-RUN . /root/.bashrc && pip3 install pyopenjtalk
 
-ENV PYTHONPATH /usr/src/app/ext/julius4seg
 ENV HMM_MODEL /opt/dictation-kit/model/phone_m/jnas-mono-16mix-gid.binhmm

@@ -1,14 +1,17 @@
 import os
 import re
+import sys
 import argparse
 import subprocess
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, List, Optional
 
+sys.path.append('ext/julius4seg')
 from julius4seg import converter, sp_inserter
 from julius4seg.sp_inserter import ModelType, frame_to_second, space_symbols
 import pyopenjtalk
+from tqdm import tqdm
 
 def run_segment(
     wav_file: Path,
@@ -31,7 +34,7 @@ def run_segment(
         base_yomi_text = f.readline().strip()
 
     julius_phones = re.split('\s*pau\s*', pyopenjtalk.g2p(base_yomi_text).lower())
-    base_kan_text = ["sym_{}".format(i) for i in range(len(julius_phones))]
+    base_kan_text = re.split('[\s、。　]+', base_yomi_text)
 
     assert len(base_kan_text) == len(
         julius_phones
@@ -62,10 +65,10 @@ def run_segment(
             forced_text_list.append(t)
             forced_phones_list.append(p)
             if j in sp_position:
-                forced_text_list.append("<sp>")
+                forced_text_list.append(" ")
                 forced_phones_list.append(space_symbols[ModelType.gmm])
 
-        forced_text_with_sp = " ".join(forced_text_list)
+        forced_text_with_sp = "".join(forced_text_list)
         forced_phones_with_sp = " ".join(forced_phones_list)
     except Exception:
         pass
@@ -94,27 +97,36 @@ def run_segment(
     time_alimented_list = frame_to_second(time_alimented_list)
     assert len(time_alimented_list) > 0, raw_second_output
 
+    full_context_label = pyopenjtalk.extract_fullcontext(forced_text_with_sp)
     with output_seg_file.open("w") as f:
         for ss in time_alimented_list:
-            f.write("\t".join(list(ss)) + "\n")
+            f.write(f"{round(float(ss[0]) * 1000 * 1000 * 10)} {round(float(ss[1]) * 1000 * 1000 * 10)} {full_context_label.pop(0)}\n")
 
     if tmp_wav_file is not None:
         tmp_wav_file.close()
 
 
 def main():
-    parser = argparse.ArgumentParser("sp insert demo by Julius")
+    parser = argparse.ArgumentParser("segmentation")
 
-    parser.add_argument("wav_file", type=Path, help="入力音声")
-    parser.add_argument("input_yomi_file", type=Path, help="スペース区切りの読みファイル")
-    parser.add_argument("output_seg_file", type=Path, help="時間情報付き音素セグメントファイル")
+    parser.add_argument("wav_file", type=Path, help="入力: 音声wavファイル or ディレクトリ")
+    parser.add_argument("input_yomi_file", type=Path, nargs='?', help="入力: 読みファイル")
+    parser.add_argument("output_seg_file", type=Path, nargs='?', help="出力: 時間情報付き音素セグメントファイル")
 
     parser.add_argument("--hmm_model", default=os.environ["HMM_MODEL"])
     parser.add_argument("--options", nargs="*", help="additional julius options")
 
     args = parser.parse_args()
 
-    run_segment(**vars(args))
+    if os.path.isdir(args.wav_file):
+        for wav_file in tqdm(args.wav_file.glob("*.wav"), desc='.wav loading'):
+            yomi = Path(wav_file.with_suffix(".txt"))
+            lab = Path(wav_file.with_suffix(".lab"))
+            run_segment(wav_file, yomi, lab, args.hmm_model, args.options)
+    else:
+        yomi = args.input_yomi_file or Path(args.wav_file.with_suffix(".txt"))
+        lab = args.output_seg_file or Path(args.wav_file.with_suffix(".lab"))
+        run_segment(args.wav_file, yomi, lab, args.hmm_model, args.options)
 
 if __name__ == "__main__":
     main()

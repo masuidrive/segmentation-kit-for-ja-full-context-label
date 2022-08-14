@@ -1,0 +1,5 @@
+Cython==0.29.32
+numpy==1.23.2
+pyopenjtalk==0.2.0
+six==1.16.0
+tqdm==4.64.0
