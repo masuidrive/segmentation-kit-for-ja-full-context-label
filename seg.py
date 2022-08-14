@@ -28,7 +28,6 @@ def run_segment(
         f"-b 16 {tmp_wav_file.name}",
         shell=True,
     )
-    wav_file = Path(tmp_wav_file.name)
 
     with input_yomi_file.open() as f:
         base_yomi_text = f.readline().strip()
@@ -52,7 +51,7 @@ def run_segment(
         f.write(dfa_1st)
 
     raw_first_output = sp_inserter.julius_sp_insert(
-        str(wav_file), f"/tmp/first_pass_{utt_id}", hmm_model, ModelType.gmm, options
+        tmp_wav_file.name, f"/tmp/first_pass_{utt_id}", hmm_model, ModelType.gmm, options
     )
 
     forced_text_list = []
@@ -90,7 +89,7 @@ def run_segment(
         f.write(dfa_2nd)
 
     raw_second_output = sp_inserter.julius_phone_alignment(
-        str(wav_file), f"/tmp/second_pass_{utt_id}", hmm_model, ModelType.gmm, options
+        tmp_wav_file.name, f"/tmp/second_pass_{utt_id}", hmm_model, ModelType.gmm, options
     )
 
     time_alimented_list = sp_inserter.get_time_alimented_list(raw_second_output)
@@ -109,7 +108,7 @@ def run_segment(
 def main():
     parser = argparse.ArgumentParser("segmentation")
 
-    parser.add_argument("wav_file", type=Path, help="入力: 音声wavファイル or ディレクトリ")
+    parser.add_argument("wav_file", type=Path, default=Path('/data'), nargs='?', help="入力: 音声wavファイル or ディレクトリ")
     parser.add_argument("input_yomi_file", type=Path, nargs='?', help="入力: 読みファイル")
     parser.add_argument("output_seg_file", type=Path, nargs='?', help="出力: 時間情報付き音素セグメントファイル")
 
@@ -117,9 +116,10 @@ def main():
     parser.add_argument("--options", nargs="*", help="additional julius options")
 
     args = parser.parse_args()
+    print(args.wav_file)
 
     if os.path.isdir(args.wav_file):
-        for wav_file in tqdm(args.wav_file.glob("*.wav"), desc='.wav loading'):
+        for wav_file in tqdm(args.wav_file.glob("*.wav"), desc='Processing'):
             yomi = Path(wav_file.with_suffix(".txt"))
             lab = Path(wav_file.with_suffix(".lab"))
             run_segment(wav_file, yomi, lab, args.hmm_model, args.options)
@@ -130,3 +130,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# based 

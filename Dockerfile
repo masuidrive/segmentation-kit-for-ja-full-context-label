@@ -26,8 +26,16 @@ RUN git clone https://github.com/pyenv/pyenv.git ~/.pyenv && \
   ( cd /tmp && curl -sSL https://bootstrap.pypa.io/get-pip.py -o get-pip.py && python3 get-pip.py )
 
 WORKDIR /usr/src/app
+
 COPY requirements.txt /usr/src/app
 RUN . /root/.bashrc && pip3 install -r requirements.txt
+
+COPY load_dic.py /usr/src/app
+RUN . /root/.bashrc && python3 load_dic.py
+
 COPY . /usr/src/app
+RUN chmod a+x run.sh
 
 ENV HMM_MODEL /opt/dictation-kit/model/phone_m/jnas-mono-16mix-gid.binhmm
+
+ENTRYPOINT [ "/usr/src/app/run.sh" ]
